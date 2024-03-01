@@ -6,7 +6,7 @@ logs
 *.log
 pub
 datasets/wisski/train.txt
-datasets/wisski/text.txt
+datasets/wisski/test.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

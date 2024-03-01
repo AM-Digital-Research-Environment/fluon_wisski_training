@@ -2,7 +2,7 @@
 DATA_NAME:=wisski
 #FORCE:=force
 # set to 'force' to force rebuild by fetching user and interaction data
-FORCE:=0
+FORCE:='no'
 # can be adjusted to KGAT or CKE
 ALGO:=KGAT
 
@@ -23,7 +23,7 @@ PUB_ENDPOINT_USER:=dmkg
 
 # create a Makefile.local to override these last settings
 -include Makefile.local
-ifndef ($(PUB_ENDPOINT_PASSWD))
+ifndef PUB_ENDPOINT_PASSWD
 $(error please set PUB_ENDPOINT_PASSWD)
 endif
 # remaining settings should be host-independent
@@ -167,13 +167,13 @@ $(CLUSTER_OUTPUT_DIR):
 	mkdir -p $@
 
 ifeq ($(FORCE),force)
-.PHONY: $(USERS_FILE)
+	.PHONY: $(USERS_FILE)
 endif
 $(USERS_FILE): $(FINAL_OUTPUT_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
 
 ifeq ($(FORCE),force)
-.PHONY: $(INTERACTIONS_FILE)
+	.PHONY: $(INTERACTIONS_FILE)
 endif
 $(INTERACTIONS_FILE): $(FINAL_OUTPUT_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@

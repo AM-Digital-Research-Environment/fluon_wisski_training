@@ -59,10 +59,10 @@ def main(kg_items_file, user_file, interactions_file, n_user,n_interact_min,n_in
         print(u,' '.join(str(i) for i in train), file=train_out)
       else: # generate more if necessary
         n = random.choice(range(n_interact_min,n_interact_max+1))
-        interactions = random.sample(range(0,n_known_items), k=n)
+        intr = random.sample(range(0,n_known_items), k=n)
         n = random.choice(range(1,n_interact_test_max+1))
-        test = random.choices(interactions, k=n)
-        train = list(set(interactions) - set(test))
+        test = random.choices(intr, k=n)
+        train = list(set(intr) - set(test))
         print(u,' '.join(str(i) for i in test), file=test_out)
         print(u,' '.join(str(i) for i in train), file=train_out)
 
