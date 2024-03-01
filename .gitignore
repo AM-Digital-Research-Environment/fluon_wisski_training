@@ -1,0 +1,11 @@
+Makefile.local
+%.pth
+%trained_model%
+%.pyc
+__pycache__
+%weights%
+%logs%
+%.log
+%pub%
+statements.nt
+datasets/wisski/tmp

@@ -1,0 +1,19 @@
++++ load_data.py	2024-02-16 10:09:34.581118342 +0100
+@@ -35,7 +35,7 @@
+         self.kg_data, self.kg_dict, self.relation_dict = self._load_kg(kg_file)
+ 
+         # ----------print the basic info about the dataset-------------.
+-        self.batch_size_kg = self.n_triples // (self.n_train // self.batch_size)
++        self.batch_size_kg = self.n_triples // (self.n_train // self.batch_size) if self.n_train > self.batch_size else (self.n_triples // self.batch_size)
+         self._print_data_info()
+ 
+     # reading train & test interaction data.
+@@ -98,7 +98,7 @@
+         if self.batch_size <= self.n_users:
+             users = rd.sample(self.exist_users, self.batch_size)
+         else:
+-            users = [rd.choice(self.exist_users) for _ in range(self.batch_size)]
++            users = [rd.choice(list(self.exist_users)) for _ in range(self.batch_size)]
+ 
+         def sample_pos_items_for_u(u, num):
+             pos_items = self.train_user_dict[u]

@@ -1,0 +1,3 @@
+#REMOTE_BASE_DIR:=$(subst /home/ms,/home/mirco,${CURDIR})
+#PUB_DEST:=/some/personal/copy/of/the/folder
+#PUB_ENDPOINT_PASSWD:=fluon-account-password-goes-here

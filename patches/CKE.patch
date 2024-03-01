@@ -1,0 +1,11 @@
+--- CKE.py	2024-02-16 09:14:04.736896418 +0100
++++ CKE2.py	2024-02-16 10:19:38.949793750 +0100
+@@ -4,7 +4,7 @@
+ Wang Xiang et al. KGAT: Knowledge Graph Attention Network for Recommendation. In KDD 2019.
+ @author: Xiang Wang (xiangwang@u.nus.edu)
+ '''
+-import tensorflow as tf
++import tensorflow.compat.v1 as tf
+ import os
+ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+ 
