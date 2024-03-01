@@ -157,8 +157,8 @@ $(TRAINED_CLUSTER): $(ALGO_PTH_DIR)/*.pth $(CLUSTER_OUTPUT_DIR)
 $(TRAINED_CLUSTER_OUTPUT): $(TRAINED_CLUSTER)
 	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --outfile $@
 
-$(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
-	cd recommendations && python3 recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $<
+$(TRAINED_MODEL_OUTPUT): $(ALGO_PTH_DIR)/*.pth
+	cd recommendations && python3 recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
 $(FINAL_OUTPUT_DIR):
 	mkdir -p $@
