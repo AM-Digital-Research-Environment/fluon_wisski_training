@@ -1,0 +1,6 @@
+[submodule "kgat_pytorch"]
+	path = kgat_pytorch
+	url = https://github.com/LunaBlack/KGAT-pytorch.git
+[submodule "kgat"]
+	path = kgat
+	url = https://github.com/xiangwang1223/knowledge_graph_attention_network.git
