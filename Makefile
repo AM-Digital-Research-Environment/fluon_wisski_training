@@ -6,10 +6,18 @@ FORCE:='no'
 # can be adjusted to KGAT or CKE
 ALGO:=KGAT
 
-N_USERS:=150
-N_INTERACT_MIN:=10
-N_INTERACT_MAX:=50
-N_INTERACT_TEST_MAX:=3
+# how many user profiles should we have for training? required profiles will be sampled
+N_USERS:=300
+# percentage of profiles that are modeled browsing around the KG neighborhood of random items
+PERC_WITHIN_RANGE:=50
+# percentage of profiles that are modeled browsing along paths in KG
+PERC_ALONG_PATHS:=50
+# number of interactions the profiles should have at max
+N_INTERACT_MAX:=200
+# and at min
+N_INTERACT_MIN:=30
+# and out of the max number, this many will be put into the test set
+N_INTERACT_MAX_TEST:=10
 
 # config paths
 HERE:=${CURDIR}
@@ -127,8 +135,9 @@ kgat:
 kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
-datasets/wisski/train.txt: $(USERS_FILE) $(INTERACTIONS_FILE)
-	cd datasets && python3 fill_interactions.py $(DATA_NAME)/$(KG_ITEMS_FILE) $(USERS_FILE) $(INTERACTIONS_FILE) $(N_USERS) $(N_INTERACT_MIN) $(N_INTERACT_MAX) $(N_INTERACT_TEST_MAX) $(DATA_NAME)
+#~ datasets/wisski/train.txt: $(USERS_FILE) $(INTERACTIONS_FILE)
+datasets/wisski/train.txt: 
+	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(HERE)/datasets/$(DATA_NAME)/items_id.txt --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
