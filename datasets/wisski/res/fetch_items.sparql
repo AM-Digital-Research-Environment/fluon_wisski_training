@@ -1,0 +1,17 @@
+PREFIX w3_99: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX w3_00: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX w3_02: <http://www.w3.org/2002/07/owl#>
+PREFIX am: <http://www.wisski.uni-bayreuth.de/ontologies/africamultiple/>
+PREFIX amdata: <http://www.wisski.uni-bayreuth.de/ontologies/africamultiple/data/>
+SELECT ?entities WHERE {
+    {
+        ?entities w3_02:sameAs ?zotero .
+        ?zotero amdata:originatesFrom "zotero_adapter"
+    }UNION{
+        ?entities w3_02:sameAs ?datasets .
+        ?datasets w3_99:type ?ritem .
+        ?ritem w3_00:subClassOf am:am_research_item
+    }
+}
+
+

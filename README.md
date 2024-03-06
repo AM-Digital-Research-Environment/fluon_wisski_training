@@ -21,6 +21,15 @@ right now, it is just the bare pipeline that works
 
 is the KG really making sense right now? can it be filtered in terms of some network metrics? is it even a network or a tree atm? do we need all the entities?
 
+Right now, the KG is obtained by downloading all statements from wisski. Then, some filtering is applied to the entities and to the relations by using blacklists for [entities](datasets/wisski/res/filter_predicates) and [relations](datasets/wisski/res/filter_relations). Also, the toolchain allows to filter out leaf-nodes in the knowledge graph which can be configured in the [dataset-related Makefile](datasets/wisski/Makefile) via
+
+* `MIN_DEGREE_IN` (standard: 2) entities in the knowledge graph should have *at least* this many *incoming* connections
+* `MIN_DEGREE_OUT` (standard: 2) entities in the knowledge graph should have *at least* this many *outgoing* connections
+
+For subsequent modeling, clustering, and recommendation, it is necessary to distinguish between metadata *entities* of the KG and *items*, i.e. those entities that represent actual datasets suitable for recommendation. These items are fetched through [a SPARQL query](datasets/wisski/res/fetch_items.sparql) first and they are listed on top of the entities list in [entities_id.txt](datasets/wisski/entities_id.txt). The corresponding [items_id.txt](datasets/wisski/items_id.txt) is an overview over just the items (which is also required at other points like profile sampling).
+
+Compilation of all the datafiles happens via `awk` and the recipe given in [datasets/wisski/res/nt_to_knowledge_graph.awk](datasets/wisski/res/nt_to_knowledge_graph.awk).
+
 ### Sampling of training profiles
 
 In [profile_sampler/profile_sampler.py](profile_sampler/profile_sampler.py), profiles are sampled according to three different personas. The number of sampled profiles depends on the number of real interactions logged in the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) and the configuration of total number of required user profiles.
