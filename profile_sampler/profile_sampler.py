@@ -76,7 +76,8 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   
   if p.exists():
     kg.load_map_and_check(p.resolve())
-    print(kg.distance_map[0,:])
+    # ~ print(kg.distance_map[0,:])
+    # ~ print(kg.distance_map)
   else:
     kg.get_distance_map()
     # ~ print(kg.distance_map)
@@ -89,6 +90,9 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   
   # sample items from item ego-networks
   # modeling people who are rather focused on a particular topic
+  min_plausible_dist = kg.get_min_plausible_dist(args.n_interact_max)
+  if min_plausible_dist < 0:
+    min_plausible_dist = max_dist_nonzero
   for i in range(args.n_within_range):
     only_zeros = True
     while only_zeros:
@@ -96,7 +100,7 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
       items = kg.sample_n_items(10)
       for item in items:
         # look around the range-neighborhood of that random item. zero range doesn't make sense as there is a >= check inside
-        ids = kg.get_items_in_range(item,nw_range_min=1,nw_range_max=min_dist_nonzero+1)
+        ids = kg.get_items_in_range(item,nw_range_min=1,nw_range_max=min_plausible_dist+1)
         if len(ids) > 0:
           # and distribute items from neighborhood to train and test lists
           train, test = sample_test_train(args, list(ids))
@@ -110,22 +114,21 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   # sample items from item paths
   # modeling people who are rather focused on a particular topic
   for i in range(n_already_sampled, args.n_along_path+n_already_sampled):
-    # sample random items
-    items = kg.sample_n_items(10)
-    for item in items:
-      path = kg.sample_path_of_len(item,args.n_interact_max, min_dist_nonzero, max_dist_nonzero, unique_path=True)
-      if len(path) == 0:
-        # update start if path discovery wasn't successful
-        continue
-      elif len(path) >= args.n_interact_min:
-        # and distribute items from neighborhood to train and test lists
-        train, test = sample_test_train(args, list(path))
-        if train is not False and test is not False:
-          only_zeros = False
-          print(f"{i} {' '.join([str(j) for j in train])}", file=outfile_train)
-          print(f"{i} {' '.join([str(j) for j in test])}", file=outfile_test)
-          n_already_sampled += 1
-          break 
+    only_zeros = True
+    while only_zeros:
+      # sample random items
+      items = kg.sample_n_items(10)
+      for item in items:
+        path = kg.sample_path_of_len(item,args.n_interact_max, min_dist_nonzero, max_dist_nonzero, unique_path=True)
+        if len(path) >= args.n_interact_min:
+          # and distribute items from neighborhood to train and test lists
+          train, test = sample_test_train(args, list(path))
+          if train is not False and test is not False:
+            only_zeros = False
+            print(f"{i} {' '.join([str(j) for j in train])}", file=outfile_train)
+            print(f"{i} {' '.join([str(j) for j in test])}", file=outfile_test)
+            n_already_sampled += 1
+            break 
   
   if args.n_rand > 0:
     # sample random items

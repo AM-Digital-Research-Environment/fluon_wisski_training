@@ -60,7 +60,7 @@ class KnowledgeGraph():
     self.distance_map = np.full((self.n_items, self.n_items), -1)
     for u in range(self.n_items):
       sp_ctx = np.asarray(nctx.AlgPaths.dijkstra_ctx(self.g, u, decision))
-      sp_ctx[np.where(sp_ctx < 0)] = np.nan
+      sp_ctx[np.where(sp_ctx < 0)] = -1
       self.distance_map[u,:] = sp_ctx[0:self.n_items]
     logger.debug("obtaining distance map done")
   
@@ -105,15 +105,26 @@ class KnowledgeGraph():
   def filter_items(self, arr):
     if not isinstance(arr, np.ndarray):
       arr = np.asarray(arr)
-    return arr[np.where(arr <= self.n_items)]
+    return arr[np.where((arr >= 0) & (arr <= self.n_items))]
 
   def dist_hist(self):
     lower = np.tril(self.distance_map, k=0)
     lower = np.reshape(lower, lower.size)
     lower = lower[np.where(lower>0)]
-    hist = np.bincount(lower) 
+    hist = np.bincount(lower)
     cs = (np.cumsum(hist)>0).nonzero()[0]
     return hist, np.min(cs), np.max(cs)
+  
+  def get_min_plausible_dist(self, n_wanted):
+    hist, _, _ = self.dist_hist()
+    cs = np.cumsum(hist) >= n_wanted
+    if np.any(cs):
+      # in this case, we found a position that satisfies condition >= n_wanted
+      i = np.argmax(cs)
+      return i
+    else:
+      # in this case, the cumulative sum of hist doesn't contain a value >= n_wanted
+      return -1
   
   def save(self, p):
     np.save(p, self.distance_map)
