@@ -10,7 +10,7 @@
   PUB_ENDPOINT_PASSWD:=fluon-account-password-goes-here
   ```
 
-* ```make publish```
+* ```INIT=1 make init && make publish```
 * fix bugs :)
 
 ## Next Steps

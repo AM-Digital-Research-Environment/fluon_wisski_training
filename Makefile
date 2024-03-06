@@ -40,6 +40,10 @@ endif
 PUB_COMMAND:=cp
 PUB_ENDPOINT_TRIGGER_UPDATE:=/maintenance/v1/db/update
 
+ifdef INIT
+$(info assuming ice-cold start. building everything from scratch)
+endif
+
 ifdef $(NOSYNC)
 RSYNC_SETTINGS:=-av --delete --exclude $(shell basename $(NOSYNC)) --exclude *docker-compose.yml
 else
@@ -98,9 +102,15 @@ sync_here:
 # ssh -o LogLevel=QUIET -t -x -a $(REMOTE) '[ -f $(REMOTE_BASE_DIR)/changelist ] && echo "exist" || echo "absent"'
 
 else
-.PHONY: clean output test
-test: $(USERS_FILE)
-	$(info --> used base path "$(HERE)")
+.PHONY: clean output init
+init: $(USERS_FILE) $(INTERACTIONS_FILE)
+	rm -f $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
+	rm -f -r recommendations/trained_model/$(ALGO)/$(DATA_NAME)
+	rm -f -r kgat/Model/pretrain/$(DATA_NAME)
+	rm -f -r kgat/Model/weights/$(DATA_NAME)
+	rm -f -r kgat_pytorch/datasets/pretrain/$(DATA_NAME)
+	rm -f -r kgat_pytorch/trained_model/$(ALGO)/$(DATA_NAME)
+	$(info initialized. sure you ran everything with INIT=1 as environment variable?)
 
 .PHONY: find_ref
 find_ref:
@@ -135,8 +145,7 @@ kgat:
 kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
-#~ datasets/wisski/train.txt: $(USERS_FILE) $(INTERACTIONS_FILE)
-datasets/wisski/train.txt: 
+datasets/wisski/train.txt: $(USERS_FILE) $(INTERACTIONS_FILE)
 	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(HERE)/datasets/$(DATA_NAME)/items_id.txt --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
 
 datasets/wisski/kg_final.txt:
@@ -175,17 +184,21 @@ $(FINAL_OUTPUT_DIR):
 $(CLUSTER_OUTPUT_DIR):
 	mkdir -p $@
 
-ifeq ($(FORCE),force)
-	.PHONY: $(USERS_FILE)
-endif
+ifdef INIT
+.PHONY: $(USERS_FILE)
+$(USERS_FILE): $(FINAL_OUTPUT_DIR)
+	$(shell echo "wisski_id\tfirst_seen" > $@)
+
+.PHONY: $(INTERACTIONS_FILE)
+$(INTERACTIONS_FILE): $(FINAL_OUTPUT_DIR)
+	$(shell echo "wisski_user\twisski_item\tat" > $@)
+else
 $(USERS_FILE): $(FINAL_OUTPUT_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
 
-ifeq ($(FORCE),force)
-	.PHONY: $(INTERACTIONS_FILE)
-endif
 $(INTERACTIONS_FILE): $(FINAL_OUTPUT_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
+endif
 
 $(FINAL_MODEL_OUTPUT): ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 $(FINAL_MODEL_OUTPUT): $(FINAL_OUTPUT_DIR) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT)
