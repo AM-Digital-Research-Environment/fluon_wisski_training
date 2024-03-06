@@ -88,6 +88,7 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   
   hist,min_dist_nonzero, max_dist_nonzero = kg.dist_hist()
   
+  logger.info("  sampling ego-network based profiles")
   # sample items from item ego-networks
   # modeling people who are rather focused on a particular topic
   min_plausible_dist = kg.get_min_plausible_dist(args.n_interact_max)
@@ -97,11 +98,12 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
     only_zeros = True
     while only_zeros:
       # sample a random item
-      items = kg.sample_n_items(10)
+      items = kg.sample_n_items(args.n_within_range)
       for item in items:
         # look around the range-neighborhood of that random item. zero range doesn't make sense as there is a >= check inside
         ids = kg.get_items_in_range(item,nw_range_min=1,nw_range_max=min_plausible_dist+1)
         if len(ids) > 0:
+          logger.debug(f"    {i}th profile egn")
           # and distribute items from neighborhood to train and test lists
           train, test = sample_test_train(args, list(ids))
           if train is not False and test is not False:
@@ -111,16 +113,18 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
             n_already_sampled += 1
             break
 
+  logger.info("  sampling path-based profiles")
   # sample items from item paths
   # modeling people who are rather focused on a particular topic
   for i in range(n_already_sampled, args.n_along_path+n_already_sampled):
     only_zeros = True
     while only_zeros:
       # sample random items
-      items = kg.sample_n_items(10)
+      items = kg.sample_n_items(args.n_along_path)
       for item in items:
         path = kg.sample_path_of_len(item,args.n_interact_max, min_dist_nonzero, max_dist_nonzero, unique_path=True)
         if len(path) >= args.n_interact_min:
+          logger.debug(f"    {n_already_sampled}th profile pth")
           # and distribute items from neighborhood to train and test lists
           train, test = sample_test_train(args, list(path))
           if train is not False and test is not False:
@@ -130,6 +134,7 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
             n_already_sampled += 1
             break 
   
+  logger.info("  sampling remaining random profiles")
   if args.n_rand > 0:
     # sample random items
     for i in range(n_already_sampled, args.n_rand+n_already_sampled):
@@ -161,10 +166,14 @@ def main(args):
   try:
     with open(Path(args.save_dir, 'train.txt'), 'w') as _train, open(Path(args.save_dir, 'test.txt'), 'w') as _test:
       if sample_real_profiles and rp_n_known > 0:
+        logger.info("sampling real profiles now")
         n_already_sampled = rp_sampler.sample_interactions(_train, _test)
+        logger.info("sampling real profiles done")
       
       if args.use_kg_sampling:
+        logger.info("sampling KG-informed profiles now")
         n_already_sampled = prepare_and_sample_from_kg(args, n_already_sampled, _train, _test)
+        logger.info("sampling KG-informed profiles done")
   except:
     Path(args.save_dir, 'train.txt').unlink(missing_ok=True)
     Path(args.save_dir, 'test.txt').unlink(missing_ok=True)
