@@ -36,9 +36,11 @@ def evaluate(model, n_items, n_entities, test_batch_size, test_user_dict, device
         
         try:
             _, rank_indices = torch.sort(batch_scores.cuda(), descending=True)    # try to speed up the sorting process
+            rank_indices = rank_indices.cpu()
         except:
             _, rank_indices = torch.sort(batch_scores, descending=True)
         
+        batch_user_ids = batch_user_ids.cpu()
         rank_indices = rank_indices.numpy()
         
         l = rank_indices.shape[1]
@@ -47,6 +49,7 @@ def evaluate(model, n_items, n_entities, test_batch_size, test_user_dict, device
         def collect_table(i,u):
             idx = rank_indices[i,:]
             items = item_ids[idx]
+            items = items.cpu()
             return np.array((
                 np.full(l,u-n_entities),  # repeat user id
                 items.numpy(), # item ids are sorted at this point

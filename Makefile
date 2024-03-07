@@ -54,7 +54,7 @@ ifeq ($(ALGO),KGAT)
 ALGO_PYTHON_SCRIPT_PYT:=main_kgat.py
 ALGO_PYTHON_PARAM_MODELTYPE:=kgat
 ALGO_PYTHON_PARAM_ALGTYPE:=kgat
-ALGO_PARAMS:=--alg_type $(ALGO_PYTHON_PARAM_ALGTYPE) --dataset $(DATA_NAME) --regs [1e-5,1e-5] --layer_size [64,32,16] --embed_size 64 --lr 0.0001 --epoch 10 --verbose 50  --batch_size 1024 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1] --use_att True --use_kge True
+ALGO_PARAMS:=--alg_type $(ALGO_PYTHON_PARAM_ALGTYPE) --dataset $(DATA_NAME) --regs [1e-5,1e-5] --layer_size [64,32,16] --embed_size 64 --lr 0.0001 --epoch 1000 --verbose 50  --batch_size 1024 --node_dropout [0.1] --mess_dropout [0.1,0.1,0.1] --use_att True --use_kge True
 ALGO_PTH_DIR:=$(HERE)/kgat_pytorch/trained_model/$(ALGO)/$(DATA_NAME)/embed-dim64_relation-dim64_random-walk_bi-interaction_64-32-16_lr0.0001_pretrain1
 else ifeq ($(ALGO),CKE)
 ALGO_PYTHON_SCRIPT_PYT:=main_cke.py
@@ -103,7 +103,7 @@ sync_here:
 
 else
 .PHONY: clean output init
-init: $(USERS_FILE) $(INTERACTIONS_FILE)
+init: $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt datasets/wisski/train.txt
 	rm -f $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
 	rm -f -r recommendations/trained_model/$(ALGO)/$(DATA_NAME)
 	rm -f -r kgat/Model/pretrain/$(DATA_NAME)
@@ -164,10 +164,10 @@ train_kgat: kgat/Model/pretrain/$(DATA_NAME)/mf.npz
 
 .PHONY: train_kgat_pytorch
 train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 1 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
+	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 1 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
+	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 $(TRAINED_CLUSTER): $(ALGO_PTH_DIR)/*.pth $(CLUSTER_OUTPUT_DIR) 
 	cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
