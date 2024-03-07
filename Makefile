@@ -63,6 +63,7 @@ ALGO_PYTHON_PARAM_ALGTYPE:=bi
 $(error need to adjust some more settings using CKE)
 endif
 
+LATEST_PTH:=$(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 TRAINED_CLUSTER:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering.joblib
 TRAINED_CLUSTER_DATA:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering_data.npy
 TRAINED_CLUSTER_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster.csv
@@ -71,8 +72,9 @@ CLUSTER_OUTPUT_DIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/
 FINAL_OUTPUT_DIR:=$(HERE)/pub/$(DATA_NAME)/
 FINAL_MODEL_OUTPUT:=$(FINAL_OUTPUT_DIR)/recommendations.csv
 FINAL_CLUSTER_OUTPUT:=$(FINAL_OUTPUT_DIR)/cluster.csv
-USERS_FILE=$(FINAL_OUTPUT_DIR)/user_ids.tsv
-INTERACTIONS_FILE=$(FINAL_OUTPUT_DIR)/user_interactions.tsv
+USER_DATA_DIR:=$(HERE)/datasets/fluon_refsrv
+USERS_FILE=$(USER_DATA_DIR)/user_ids.tsv
+INTERACTIONS_FILE=$(USER_DATA_DIR)/user_interactions.tsv
 
 ifeq ($(DATA_NAME),wisski)
 Ks:=20, 40, 60, 80, 100
@@ -119,7 +121,7 @@ find_ref:
 changelist:
 	$(shell find . ! -path . -newermm find_ref -print > changelist && rm -f find_ref)
 
-output: find_ref $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_MODEL_OUTPUT) changelist
+output: find_ref $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) changelist
 	$(info done)
 
 .PHONY: publish
@@ -169,7 +171,7 @@ train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
-$(TRAINED_CLUSTER): $(ALGO_PTH_DIR)/*.pth $(CLUSTER_OUTPUT_DIR) 
+$(TRAINED_CLUSTER): $(LATEST_PTH) $(CLUSTER_OUTPUT_DIR) 
 	cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
 $(TRAINED_CLUSTER_OUTPUT): $(TRAINED_CLUSTER)
@@ -184,19 +186,22 @@ $(FINAL_OUTPUT_DIR):
 $(CLUSTER_OUTPUT_DIR):
 	mkdir -p $@
 
+$(USER_DATA_DIR):
+	mkdir -p $@
+
 ifdef INIT
 .PHONY: $(USERS_FILE)
-$(USERS_FILE): $(FINAL_OUTPUT_DIR)
+$(USERS_FILE): $(USER_DATA_DIR)
 	$(shell echo "wisski_id\tfirst_seen" > $@)
 
 .PHONY: $(INTERACTIONS_FILE)
-$(INTERACTIONS_FILE): $(FINAL_OUTPUT_DIR)
+$(INTERACTIONS_FILE): $(USER_DATA_DIR)
 	$(shell echo "wisski_user\twisski_item\tat" > $@)
 else
-$(USERS_FILE): $(FINAL_OUTPUT_DIR)
+$(USERS_FILE): $(USER_DATA_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
 
-$(INTERACTIONS_FILE): $(FINAL_OUTPUT_DIR)
+$(INTERACTIONS_FILE): $(USER_DATA_DIR)
 	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
 endif
 
