@@ -63,7 +63,13 @@ ALGO_PYTHON_PARAM_ALGTYPE:=bi
 $(error need to adjust some more settings using CKE)
 endif
 
-LATEST_PTH:=$(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+ifneq ("$(wildcard $(ALGO_PTH_DIR)/*.pth)","")
+	LATEST_PTH:=$(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+else
+	LATEST_PTH:=$(ALGO_PTH_DIR)/*.pth
+endif
+
+
 TRAINED_CLUSTER:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering.joblib
 TRAINED_CLUSTER_DATA:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering_data.npy
 TRAINED_CLUSTER_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster.csv
@@ -160,57 +166,46 @@ kgat/Model/pretrain/$(DATA_NAME)/mf.npz: kgat datasets/$(DATA_NAME)/kg_final.txt
 kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz: kgat_pytorch kgat/Model/pretrain/$(DATA_NAME)/mf.npz
 	[ -f $@ ] || ( mkdir -p kgat_pytorch/datasets/pretrain/$(DATA_NAME) && ln -s $(HERE)/kgat/Model/pretrain/$(DATA_NAME)/mf.npz $@ )
 
-.PHONY: train_kgat
 train_kgat: kgat/Model/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat/Model && python3 Main.py $(ALGO_PARAMS) --model_type $(ALGO_PYTHON_PARAM_MODELTYPE) --pretrain -1 --save_flag 1 --report 0
 
-.PHONY: train_kgat_pytorch
 train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
-$(TRAINED_CLUSTER): $(LATEST_PTH) $(CLUSTER_OUTPUT_DIR) 
-	cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+$(TRAINED_CLUSTER): $(LATEST_PTH) 
+	mkdir -p $(CLUSTER_OUTPUT_DIR)  && cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
 $(TRAINED_CLUSTER_OUTPUT): $(TRAINED_CLUSTER)
 	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --outfile $@
 
-$(TRAINED_MODEL_OUTPUT): $(ALGO_PTH_DIR)/*.pth
+$(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
 	cd recommendations && python3 recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
-
-$(FINAL_OUTPUT_DIR):
-	mkdir -p $@
-
-$(CLUSTER_OUTPUT_DIR):
-	mkdir -p $@
-
-$(USER_DATA_DIR):
-	mkdir -p $@
 
 ifdef INIT
 .PHONY: $(USERS_FILE)
-$(USERS_FILE): $(USER_DATA_DIR)
-	$(shell echo "wisski_id\tfirst_seen" > $@)
+$(USERS_FILE):
+	mkdir -p $(USER_DATA_DIR) && $(shell echo "wisski_id\tfirst_seen" > $@)
 
 .PHONY: $(INTERACTIONS_FILE)
-$(INTERACTIONS_FILE): $(USER_DATA_DIR)
-	$(shell echo "wisski_user\twisski_item\tat" > $@)
+$(INTERACTIONS_FILE):
+	mkdir -p $(USER_DATA_DIR) && $(shell echo "wisski_user\twisski_item\tat" > $@)
 else
-$(USERS_FILE): $(USER_DATA_DIR)
-	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
+$(USERS_FILE): 
+	mkdir -p $(USER_DATA_DIR) && curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
 
-$(INTERACTIONS_FILE): $(USER_DATA_DIR)
-	curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
+$(INTERACTIONS_FILE):
+	mkdir -p $(USER_DATA_DIR) && curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
 endif
 
 $(FINAL_MODEL_OUTPUT): ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
-$(FINAL_MODEL_OUTPUT): $(FINAL_OUTPUT_DIR) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT)
-	$(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_model.awk $(ITEMS_FILE) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT) > $@ ) 
+$(FINAL_MODEL_OUTPUT): $(USERS_FILE) $(TRAINED_MODEL_OUTPUT)
+	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_model.awk $(ITEMS_FILE) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT) > $@ ) 
 
 $(FINAL_CLUSTER_OUTPUT): ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
-$(FINAL_CLUSTER_OUTPUT): $(FINAL_OUTPUT_DIR) $(TRAINED_CLUSTER_OUTPUT)
-	$(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ ) 
+$(FINAL_CLUSTER_OUTPUT): $(TRAINED_CLUSTER_OUTPUT)
+	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ ) 
 
 endif
