@@ -15,7 +15,17 @@
 
 ## Next Steps
 
-right now, it is just the bare pipeline that works
+Right now, the training-side of fluid ontologies works:
+
+* Loading the entire knowledge graph from wisski
+* Gathering user profiles from fluon-server
+* Sampling knowledge graph informed profiles if there aren't enough existing user profiles
+* Obtaining a ranking of items for existing users
+* Clustering embedding vectors of items to obtain groups of items
+* Rank items based on distance of cluster centroids
+* Derive recommendations for new users based on cluster centroids
+
+One characteristic of fluid ontologies is backpropagating frequent user interactions as possible updates of the ontology. This part is untackled, yet. One could inspect frequent user paths, however, and combine that with closeness derived from item embedding to identify items in the knowledge graph that share a similarity that hasn't been uncovered by ontological connections yet. 
 
 ### Inspect Knowledge Graph
 
