@@ -131,7 +131,7 @@ output: find_ref $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) changelist
 	$(info done)
 
 .PHONY: publish
-publish: $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
+publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
 	$(PUB_COMMAND) $(HERE)/datasets/$(DATA_NAME)/items_id.txt $(PUB_DEST)/items_id.txt && \
 	$(PUB_COMMAND) $^ $(PUB_DEST) && \
 	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
@@ -153,13 +153,13 @@ kgat:
 kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
-datasets/wisski/train.txt: $(USERS_FILE) $(INTERACTIONS_FILE)
+datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
 	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(HERE)/datasets/$(DATA_NAME)/items_id.txt --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
 
-kgat/Model/pretrain/$(DATA_NAME)/mf.npz: kgat datasets/$(DATA_NAME)/kg_final.txt datasets/$(DATA_NAME)/train.txt
+kgat/Model/pretrain/$(DATA_NAME)/mf.npz: kgat datasets/$(DATA_NAME)/kg_final.txt datasets/$(DATA_NAME)/train.txt datasets/$(DATA_NAME)/test.txt
 	cd kgat && ( [ -d Data/$(DATA_NAME) ] || ln -s $(HERE)/datasets/$(DATA_NAME) Data/$(DATA_NAME) ) && cd Model && \
 	python3 Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag 1 --pretrain -1 --report 0 && python3 Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag -1 --pretrain 1 --report 0
 
@@ -176,9 +176,9 @@ train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 $(TRAINED_CLUSTER): $(LATEST_PTH) 
-	mkdir -p $(CLUSTER_OUTPUT_DIR)  && cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
-$(TRAINED_CLUSTER_OUTPUT): $(TRAINED_CLUSTER)
+$(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_OUTPUT) &: $(TRAINED_CLUSTER)
 	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --outfile $@
 
 $(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)

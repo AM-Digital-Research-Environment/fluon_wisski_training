@@ -38,7 +38,11 @@ def evaluate_cluster(args):
           sil.append(0)
   
   # extract optimal configuration according to silhouette coefficient
-  eps = ran[np.argmax(sil)]
+  # ~ eps = ran[np.argmax(sil)]
+  # but use highest configuration of silhouette coefficient possible. therefore,
+  # create a reversed view of both ran and sil to get the highest value of silhouette
+  # coefficient possible
+  eps = ran[::-1][np.argmax(sil[::-1])]
   labels = cluster_optics_dbscan(
     reachability=clust.reachability_,
     core_distances=clust.core_distances_,
