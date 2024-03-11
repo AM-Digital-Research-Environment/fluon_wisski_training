@@ -73,6 +73,8 @@ endif
 TRAINED_CLUSTER:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering.joblib
 TRAINED_CLUSTER_DATA:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering_data.npy
 TRAINED_CLUSTER_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster.csv
+TRAINED_CLUSTER_STATS:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster_stats.joblib
+TRAINED_CLUSTER_PLOTDIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/plots/
 TRAINED_MODEL_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/recommendations.csv
 CLUSTER_OUTPUT_DIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/
 FINAL_OUTPUT_DIR:=$(HERE)/pub/$(DATA_NAME)/
@@ -80,6 +82,7 @@ FINAL_MODEL_OUTPUT:=$(FINAL_OUTPUT_DIR)/recommendations.csv
 FINAL_CLUSTER_OUTPUT:=$(FINAL_OUTPUT_DIR)/cluster.csv
 USER_DATA_DIR:=$(HERE)/datasets/fluon_refsrv
 USERS_FILE=$(USER_DATA_DIR)/user_ids.tsv
+ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 INTERACTIONS_FILE=$(USER_DATA_DIR)/user_interactions.tsv
 
 ifeq ($(DATA_NAME),wisski)
@@ -131,9 +134,9 @@ output: find_ref $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) changelist
 	$(info done)
 
 .PHONY: publish
-publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
+publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
 	$(PUB_COMMAND) $(HERE)/datasets/$(DATA_NAME)/items_id.txt $(PUB_DEST)/items_id.txt && \
-	$(PUB_COMMAND) $^ $(PUB_DEST) && \
+	$(PUB_COMMAND) -r $^ $(PUB_DEST) && \
 	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
 
 clean:
@@ -154,7 +157,7 @@ kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
 datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(HERE)/datasets/$(DATA_NAME)/items_id.txt --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
+	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
@@ -178,8 +181,8 @@ train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 $(TRAINED_CLUSTER): $(LATEST_PTH) 
 	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
-$(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_OUTPUT) &: $(TRAINED_CLUSTER)
-	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --outfile $@
+$(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_CLUSTER_PLOTDIR) &: $(TRAINED_CLUSTER)
+	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --stats $(TRAINED_CLUSTER_STATS) --plotdir $(TRAINED_CLUSTER_PLOTDIR) --outfile $(TRAINED_CLUSTER_OUTPUT)
 
 $(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
 	cd recommendations && python3 recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
@@ -200,11 +203,9 @@ $(INTERACTIONS_FILE):
 	mkdir -p $(USER_DATA_DIR) && curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
 endif
 
-$(FINAL_MODEL_OUTPUT): ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 $(FINAL_MODEL_OUTPUT): $(USERS_FILE) $(TRAINED_MODEL_OUTPUT)
 	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_model.awk $(ITEMS_FILE) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT) > $@ ) 
 
-$(FINAL_CLUSTER_OUTPUT): ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 $(FINAL_CLUSTER_OUTPUT): $(TRAINED_CLUSTER_OUTPUT)
 	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ ) 
 
