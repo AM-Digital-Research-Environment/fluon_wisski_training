@@ -26,7 +26,7 @@ SAVE_DIR:=trained_model/$(ALGO)/$(DATA_NAME)
 PUB_DEST:=/path/to/destination/
 PUB_HOST:=http://127.0.0.1:5000
 PUB_ENDPOINT_USER:=dmkg
-#NOSYNC:=$(HERE)/403.23.99__tmp
+#~ NOSYNC:=$(HERE)/403.23.99__tmp
 #NOSYNC_DATADIR_NEL:=$(NOSYNC)/nel
 
 # create a Makefile.local to override these last settings
@@ -45,7 +45,7 @@ $(info assuming ice-cold start. building everything from scratch)
 endif
 
 ifdef $(NOSYNC)
-RSYNC_SETTINGS:=-av --delete --exclude $(shell basename $(NOSYNC)) --exclude *docker-compose.yml
+RSYNC_SETTINGS:=-av --delete --exclude $(shell basename $(NOSYNC)) --exclude *docker-compose.yml --exclude .git
 else
 RSYNC_SETTINGS:=-av --delete --no-links
 endif
@@ -69,14 +69,13 @@ else
 	LATEST_PTH:=$(ALGO_PTH_DIR)/*.pth
 endif
 
-
-TRAINED_CLUSTER:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering.joblib
-TRAINED_CLUSTER_DATA:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/clustering_data.npy
-TRAINED_CLUSTER_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster.csv
-TRAINED_CLUSTER_STATS:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/cluster_stats.joblib
-TRAINED_CLUSTER_PLOTDIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/plots/
-TRAINED_MODEL_OUTPUT:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/recommendations.csv
 CLUSTER_OUTPUT_DIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/
+TRAINED_CLUSTER:=$(CLUSTER_OUTPUT_DIR)/clustering.joblib
+TRAINED_CLUSTER_DATA:=$(CLUSTER_OUTPUT_DIR)/clustering_data.npy
+TRAINED_CLUSTER_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/cluster.csv
+TRAINED_CLUSTER_STATS:=$(CLUSTER_OUTPUT_DIR)/cluster_stats.joblib
+TRAINED_CLUSTER_PLOTDIR:=$(CLUSTER_OUTPUT_DIR)/plots/
+TRAINED_MODEL_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/recommendations.csv
 FINAL_OUTPUT_DIR:=$(HERE)/pub/$(DATA_NAME)/
 FINAL_MODEL_OUTPUT:=$(FINAL_OUTPUT_DIR)/recommendations.csv
 FINAL_CLUSTER_OUTPUT:=$(FINAL_OUTPUT_DIR)/cluster.csv
@@ -85,13 +84,9 @@ USERS_FILE=$(USER_DATA_DIR)/user_ids.tsv
 ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 INTERACTIONS_FILE=$(USER_DATA_DIR)/user_interactions.tsv
 
-ifeq ($(DATA_NAME),wisski)
 Ks:=20, 40, 60, 80, 100
-KG_ITEMS_FILE:=items_id.txt
-else
-$(error DATA_NAME must be 'wisski')
-endif
-KG_ITEMS_N:=$(shell cut -f2 $(HERE)/datasets/$(DATA_NAME)/$(KG_ITEMS_FILE) | sort -nrk1,1 | head -1 | awk '{print $$1 + 1}') # increment result by one as numbering starts at 0
+KG_ITEMS_FILE:=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
+KG_ITEMS_N:=$(shell cut -f2 $(KG_ITEMS_FILE) | sort -nrk1,1 | head -1 | awk '{print $$1 + 1}') # increment result by one as numbering starts at 0
 
 #~ .INTERMEDIATE: $(DIRNE)/config.py
 
@@ -99,8 +94,8 @@ all:
 	$(info nothing to be done here...)
 
 ifdef REMOTE
-.PHONY: clean output sync_here sync_to_remote test
-output: sync_to_remote
+.PHONY: clean output training sync_here sync_to_remote test
+training output: sync_to_remote
 	ssh -t -x -a $(REMOTE) '(screen -S bla bash -c "make -C $(REMOTE_BASE_DIR) $@ ; exec bash")'
 test:  sync_to_remote
 	ssh $(REMOTE) make -C $(REMOTE_BASE_DIR) $@
@@ -114,13 +109,7 @@ sync_here:
 
 else
 .PHONY: clean output init
-init: $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt datasets/wisski/train.txt
-	rm -f $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
-	rm -f -r recommendations/trained_model/$(ALGO)/$(DATA_NAME)
-	rm -f -r kgat/Model/pretrain/$(DATA_NAME)
-	rm -f -r kgat/Model/weights/$(DATA_NAME)
-	rm -f -r kgat_pytorch/datasets/pretrain/$(DATA_NAME)
-	rm -f -r kgat_pytorch/trained_model/$(ALGO)/$(DATA_NAME)
+init: clean $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt datasets/wisski/train.txt
 	$(info initialized. sure you ran everything with INIT=1 as environment variable?)
 
 .PHONY: find_ref
@@ -130,7 +119,10 @@ find_ref:
 changelist:
 	$(shell find . ! -path . -newermm find_ref -print > changelist && rm -f find_ref)
 
-output: find_ref $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) changelist
+output: find_ref $(FINAL_MODEL_OUTPUT) $(FINAL_CLUSTER_OUTPUT) changelist
+	$(info done)
+
+training: find_ref $(TRAINED_MODEL_OUTPUT) $(TRAINED_CLUSTER) changelist
 	$(info done)
 
 .PHONY: publish
@@ -140,7 +132,13 @@ publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(T
 	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
 
 clean:
-	rm -f recommendations/clustering.joblib recommendations/clustering_data.npy
+	rm -f $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
+	rm -f -r $(CLUSTER_OUTPUT_DIR)
+	rm -f -r $(FINAL_OUTPUT_DIR)
+	rm -f -r kgat/Model/pretrain/$(DATA_NAME)
+	rm -f -r kgat/Model/weights/$(DATA_NAME)
+	rm -f -r kgat_pytorch/datasets/pretrain/$(DATA_NAME)
+	rm -f -r kgat_pytorch/trained_model/$(ALGO)/$(DATA_NAME)
 
 kgat:
 	git submodule add https://github.com/xiangwang1223/knowledge_graph_attention_network.git $@ && \
