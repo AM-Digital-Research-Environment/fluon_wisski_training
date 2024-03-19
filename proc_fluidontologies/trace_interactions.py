@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from graph import KnowledgeGraph
 from utils import *
@@ -25,8 +26,12 @@ def main(args):
   
   # load user_interactions.tsv
   logger.info(args.interactions_file)
+  data = pd.read_csv(args.interactions_file, sep='\t')
+  print(data)
+  
   # ultimate goal:
   ## find items that are often interacted on across users
+  #### tally user_interactions.tsv 2 | sort -k 1 -r | head
   ## among those items identify those that are not yet connected in the ontology or that have a very long distance
   
   
