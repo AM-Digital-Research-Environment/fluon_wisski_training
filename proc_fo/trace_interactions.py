@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 from graph import KnowledgeGraph
-from utils import *
+from procutils import *
 
 BASE = Path(__file__).stem
 logger = logging.getLogger(BASE)

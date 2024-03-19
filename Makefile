@@ -61,11 +61,7 @@ else
 endif
 
 CLUSTER_OUTPUT_DIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/
-TRAINED_CLUSTER:=$(CLUSTER_OUTPUT_DIR)/clustering.joblib
-TRAINED_CLUSTER_DATA:=$(CLUSTER_OUTPUT_DIR)/clustering_data.npy
 TRAINED_CLUSTER_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/cluster.csv
-TRAINED_CLUSTER_STATS:=$(CLUSTER_OUTPUT_DIR)/cluster_stats.joblib
-TRAINED_CLUSTER_PLOTDIR:=$(CLUSTER_OUTPUT_DIR)/plots/
 TRAINED_MODEL_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/recommendations.csv
 FINAL_OUTPUT_DIR:=$(HERE)/pub/$(DATA_NAME)/
 FINAL_MODEL_OUTPUT:=$(FINAL_OUTPUT_DIR)/recommendations.csv
@@ -128,13 +124,13 @@ output: find_ref $(FINAL_MODEL_OUTPUT) $(FINAL_CLUSTER_OUTPUT) changelist ## cre
 	$(info done)
 
 .PHONY: training
-training: find_ref $(TRAINED_MODEL_OUTPUT) $(TRAINED_CLUSTER) changelist ## do just the training
+training: find_ref $(TRAINED_MODEL_OUTPUT) changelist ## do just the training
 	$(info done)
 
 .PHONY: publish
-publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) ## publish results to fluon_refsrv
+publish: $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) ## publish results to fluon_refsrv
 	$(PUB_COMMAND) $(HERE)/datasets/$(DATA_NAME)/items_id.txt $(PUB_DEST)/items_id.txt && \
-	$(PUB_COMMAND) -r $^ $(PUB_DEST) && \
+	$(MAKE) -C proc_clustering publish PUB_COMMAND=$(PUB_COMMAND) PUB_DEST="$(PUB_DEST)" && \
 	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
 
 .PHONY: clean
@@ -162,7 +158,7 @@ kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
 datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	$(MAKE) -C processing trainingprofiles DATA_NAME="$(DATA_NAME)" USER_DATA_DIR="$(USER_DATA_DIR)" DATA_DIR="$(HERE)/datasets/$(DATA_NAME)/"
+	$(MAKE) -C proc_fo trainingprofiles DATA_NAME="$(DATA_NAME)" USER_DATA_DIR="$(USER_DATA_DIR)" DATA_DIR="$(HERE)/datasets/$(DATA_NAME)/"
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
@@ -183,14 +179,8 @@ train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && $(py) $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
-$(TRAINED_CLUSTER): $(LATEST_PTH) 
-	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && $(py) train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
-
-$(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_CLUSTER_PLOTDIR) &: $(TRAINED_CLUSTER)
-	cd recommendations && $(py) inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --stats $(TRAINED_CLUSTER_STATS) --plotdir $(TRAINED_CLUSTER_PLOTDIR) --outfile $(TRAINED_CLUSTER_OUTPUT)
-
-$(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
-	cd recommendations && $(py) recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+$(TRAINED_CLUSTER_OUTPUT) $(TRAINED_MODEL_OUTPUT) &: $(LATEST_PTH)
+	$(MAKE) -C proc_clustering training CLUSTER_OUTPUT_DIR="$(CLUSTER_OUTPUT_DIR)" DATA_DIR="$(HERE)/datasets" DATA_NAME="$(DATA_NAME)" K="$(Ks)" LATEST_PTH="$(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')"
 
 ifdef INIT
 .PHONY: $(USERS_FILE)

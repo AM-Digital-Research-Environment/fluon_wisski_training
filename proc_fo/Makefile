@@ -68,7 +68,17 @@ $(HERE)/user_interactions.tsv: N_INTERACT_MAX:=20
 $(HERE)/user_interactions.tsv: N_INTERACT_MIN:=3
 $(HERE)/user_interactions.tsv: N_INTERACT_MAX_TEST:=0
 $(HERE)/user_interactions.tsv: ## create a user_interactions.tsv for testing purposes
-	$(py) interactions_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE) --save_dir $(HERE)/
+	$(py) sample_interactions.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE) --save_dir $(HERE)/
 
 $(OUT_TEST) $(OUT_TRAIN) &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	$(py) profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE) --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(DATA_DIR)
+	$(py) sample_profiles.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE) --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(DATA_DIR)
+
+
+$(TRAINED_CLUSTER): $(LATEST_PTH) 
+	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && $(py) cluster_training.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+
+$(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_CLUSTER_PLOTDIR) &: $(TRAINED_CLUSTER)
+	cd recommendations && $(py) cluster_inspection.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --stats $(TRAINED_CLUSTER_STATS) --plotdir $(TRAINED_CLUSTER_PLOTDIR) --outfile $(TRAINED_CLUSTER_OUTPUT)
+
+$(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
+	cd recommendations && $(py) cluster_recommender.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')

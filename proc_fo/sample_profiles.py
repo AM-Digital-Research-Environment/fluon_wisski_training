@@ -9,7 +9,7 @@ logger = logging.getLogger(BASE)
 
 from graph.GraphSampler import GraphSampler
 from refsrv import RefSrvSampler
-from utils import *
+from procutils import *
 
 
 def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_test):
