@@ -1,3 +1,11 @@
+SHELL := bash
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
+# alias the python- and pip-executables to the ones in the virtual environment
+py = $$(if [ -d $(CURDIR)/'.venv' ]; then echo $(CURDIR)/".venv/bin/python3"; else echo "python3"; fi)
+pip = $(py) -m pip
+
 # dataset to be used. must have a folder in datasets/
 DATA_NAME:=wisski
 #FORCE:=force
@@ -90,7 +98,16 @@ KG_ITEMS_N:=$(shell cut -f2 $(KG_ITEMS_FILE) | sort -nrk1,1 | head -1 | awk '{pr
 
 #~ .INTERMEDIATE: $(DIRNE)/config.py
 
-all:
+.DEFAULT_GOAL := help
+
+# Display help for targets when calling `make` or `make help`.
+# To add help-tags to new targets, place them after the target-name (and
+# dependencies) following a `##`. See the targets in this file for examples.
+.PHONY: help
+help: ## Display this help section
+	@awk 'BEGIN {FS = ":.*?## "} /^[.a-zA-Z\$$/]+.*:.*?##\s/ {printf "\033[36m%-38s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+all: ## does nothing :) 
 	$(info nothing to be done here...)
 
 ifdef REMOTE
@@ -109,7 +126,7 @@ sync_here:
 
 else
 .PHONY: clean output init
-init: clean $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt datasets/wisski/train.txt
+init: clean $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt datasets/wisski/train.txt ## re-initialization of training. attention, deletes previous training outputs!
 	$(info initialized. sure you ran everything with INIT=1 as environment variable?)
 
 .PHONY: find_ref
@@ -119,19 +136,22 @@ find_ref:
 changelist:
 	$(shell find . ! -path . -newermm find_ref -print > changelist && rm -f find_ref)
 
-output: find_ref $(FINAL_MODEL_OUTPUT) $(FINAL_CLUSTER_OUTPUT) changelist
+.PHONY: output
+output: find_ref $(FINAL_MODEL_OUTPUT) $(FINAL_CLUSTER_OUTPUT) changelist ## create output files from training
 	$(info done)
 
-training: find_ref $(TRAINED_MODEL_OUTPUT) $(TRAINED_CLUSTER) changelist
+.PHONY: training
+training: find_ref $(TRAINED_MODEL_OUTPUT) $(TRAINED_CLUSTER) changelist ## do just the training
 	$(info done)
 
 .PHONY: publish
-publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
+publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) ## publish results to fluon_refsrv
 	$(PUB_COMMAND) $(HERE)/datasets/$(DATA_NAME)/items_id.txt $(PUB_DEST)/items_id.txt && \
 	$(PUB_COMMAND) -r $^ $(PUB_DEST) && \
 	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
 
-clean:
+.PHONY: clean
+clean: ## Cleanup routines. Covers training outputs as well!
 	rm -f $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT)
 	rm -f -r $(CLUSTER_OUTPUT_DIR)
 	rm -f -r $(FINAL_OUTPUT_DIR)
@@ -155,35 +175,35 @@ kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
 datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	cd profile_sampler && python3 profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
+	cd profile_sampler && $(py) profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
 
 kgat/Model/pretrain/$(DATA_NAME)/mf.npz: kgat datasets/$(DATA_NAME)/kg_final.txt datasets/$(DATA_NAME)/train.txt datasets/$(DATA_NAME)/test.txt
 	cd kgat && ( [ -d Data/$(DATA_NAME) ] || ln -s $(HERE)/datasets/$(DATA_NAME) Data/$(DATA_NAME) ) && cd Model && \
-	python3 Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag 1 --pretrain -1 --report 0 && python3 Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag -1 --pretrain 1 --report 0
+	$(py) Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag 1 --pretrain -1 --report 0 && $(py) Main.py $(ALGO_PARAMS) --model_type bprmf --save_flag -1 --pretrain 1 --report 0
 
 kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz: kgat_pytorch kgat/Model/pretrain/$(DATA_NAME)/mf.npz
 	[ -f $@ ] || ( mkdir -p kgat_pytorch/datasets/pretrain/$(DATA_NAME) && ln -s $(HERE)/kgat/Model/pretrain/$(DATA_NAME)/mf.npz $@ )
 
 train_kgat: kgat/Model/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat/Model && python3 Main.py $(ALGO_PARAMS) --model_type $(ALGO_PYTHON_PARAM_MODELTYPE) --pretrain -1 --save_flag 1 --report 0
+	cd kgat/Model && $(py) Main.py $(ALGO_PARAMS) --model_type $(ALGO_PYTHON_PARAM_MODELTYPE) --pretrain -1 --save_flag 1 --report 0
 
 train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
+	cd kgat_pytorch && $(py) $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat_pytorch && python3 $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
+	cd kgat_pytorch && $(py) $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 
 $(TRAINED_CLUSTER): $(LATEST_PTH) 
-	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && python3 train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+	mkdir -p $(CLUSTER_OUTPUT_DIR) && cd recommendations && $(py) train_cluster.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
 $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_CLUSTER_PLOTDIR) &: $(TRAINED_CLUSTER)
-	cd recommendations && python3 inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --stats $(TRAINED_CLUSTER_STATS) --plotdir $(TRAINED_CLUSTER_PLOTDIR) --outfile $(TRAINED_CLUSTER_OUTPUT)
+	cd recommendations && $(py) inspect_cluster.py --cluster $(TRAINED_CLUSTER) --data $(TRAINED_CLUSTER_DATA) --stats $(TRAINED_CLUSTER_STATS) --plotdir $(TRAINED_CLUSTER_PLOTDIR) --outfile $(TRAINED_CLUSTER_OUTPUT)
 
 $(TRAINED_MODEL_OUTPUT): $(LATEST_PTH)
-	cd recommendations && python3 recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
+	cd recommendations && $(py) recommend.py --data_name $(DATA_NAME) --data_dir $(HERE)/datasets --Ks '[$(Ks)]' --pretrain_model_path $(shell find $(ALGO_PTH_DIR) -newer kgat_pytorch -name '*.pth' -exec stat -c '%Y %n' {} \; | sort -nr | head -n 1 | cut -f2 -d' ')
 
 ifdef INIT
 .PHONY: $(USERS_FILE)
