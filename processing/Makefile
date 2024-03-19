@@ -56,7 +56,7 @@ clean: ## run cleanup routines
 
 .PHONY: trace
 trace: $(HERE)/user_interactions.tsv ## run interaction tracer
-	$(py) trace_interactions.py --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE)
+	$(py) trace_interactions.py -d -v --items_file $(ITEMS_FILE) --knowledge_graph_file $(KG_FILE) --entities_file $(ENT_FILE) --interactions_file $^
 
 .PHONY: trainingprofiles
 trainingprofiles: $(OUT_TEST) $(OUT_TRAIN) ## create test and train split files

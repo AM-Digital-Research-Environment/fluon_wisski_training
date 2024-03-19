@@ -24,15 +24,9 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   
   if p.exists():
     kg.load_map_and_check(p.resolve())
-    # ~ print(kg.distance_map[0,:])
-    # ~ print(kg.distance_map)
   else:
     kg.get_distance_map()
-    # ~ print(kg.distance_map)
-  
-  if not p.exists():
     kg.save(p.resolve())
-  
   
   hist,min_dist_nonzero, max_dist_nonzero = kg.dist_hist()
   

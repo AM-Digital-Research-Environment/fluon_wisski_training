@@ -19,16 +19,24 @@ def main(args):
   
   if p.exists():
     kg.load_map_and_check(p.resolve())
-    # ~ print(kg.distance_map[0,:])
-    # ~ print(kg.distance_map)
   else:
     kg.get_distance_map()
-    # ~ print(kg.distance_map)
-
-if __name__ == '__main__':
+    kg.save(p.resolve())
   
+  # load user_interactions.tsv
+  logger.info(args.interactions_file)
+  # ultimate goal:
+  ## find items that are often interacted on across users
+  ## among those items identify those that are not yet connected in the ontology or that have a very long distance
+  
+  
+if __name__ == '__main__':
   parser = get_preconfigured_parser()
   args = parser.parse_args()
+  
+  if args.interactions_file is None:
+    raise Exception("Need the interactions_file to work with!")
+  
   configure_logging(args, BASE)
   
   main(args)
