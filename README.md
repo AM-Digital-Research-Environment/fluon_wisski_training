@@ -42,7 +42,7 @@ Compilation of all the datafiles happens via `awk` and the recipe given in [data
 
 ### Sampling of training profiles
 
-In [profile_sampler/profile_sampler.py](profile_sampler/profile_sampler.py), profiles are sampled according to three different personas. The number of sampled profiles depends on the number of real interactions logged in the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) and the configuration of total number of required user profiles.
+In [proc_fluidontologies/sample_profiles.py](proc_fluidontologies/sample_profiles.py), profiles are sampled according to three different personas. The number of sampled profiles depends on the number of real interactions logged in the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) and the configuration of total number of required user profiles.
 
 #### KG-informed topic focus
 
@@ -64,7 +64,7 @@ This persona just clicks around randomly. The profile is simply sampled randomly
 
 #### Configuration
 
-Profile sampling is configurable in the main [Makefile](Makefile). 
+Profile sampling is configurable in the [proc_fluidontologies/Makefile](proc_fluidontologies/Makefile). 
 
 * `N_USERS`: The total number of user profiles that is required for training. If the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) already contains `N_AVAILABLE` real interactions, these are given priority. The number of required sampled profiles is obtained as the difference between `N_REQUIRED = N_USERS - N_AVAILABLE`.
 * `PERC_WITHIN_RANGE`: percentage of profiles that are sampled according to the [focused persona](#kg-informed-topic-focus). The number of profiles is obtained as `N_REQUIRED * PERC_WITHN_RANGE / 100`
@@ -81,7 +81,7 @@ also, for new users, we just obtain the average of clustered items and rank them
 
 ### Preparing Recommendations
 
-Right now, it is a clustering of embeddings of entities (not just items, which is something different in the language of related works [kgat](kgat) and [kgat_pytorch](kgat_pytorch)) in [recommendations/train_cluster.py](recommendations/train_cluster.py). maybe this can be improved as well.
+Right now, it is a clustering of embeddings of entities (not just items, which is something different in the language of related works [kgat](kgat) and [kgat_pytorch](kgat_pytorch)) in [proc_clustering/cluster_training.py](proc_clustering/cluster_training.py). maybe this can be improved as well.
 
 ### Use and Filter Existing Interactions
 

@@ -8,8 +8,6 @@ MAKEFLAGS += --no-builtin-rules
 py := $$(if [ -d $(CURDIR)/'.venv' ]; then echo $(CURDIR)/".venv/bin/python3"; else echo "python3"; fi)
 pip = $(py) -m pip
 
-HERE:=$(CURDIR)
-
 ifndef DATA_NAME
 	$(error can't proceed without DATA_NAME)
 endif
@@ -43,10 +41,6 @@ training: $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_MODEL_OUTPUT) ## cluster data and 
 .PHONY: publish
 publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) ## publish results 
 	$(PUB_COMMAND) -r $^ $(PUB_DEST) && \
-
-.PHONY: clean
-clean: ## run cleanup routines
-	rm -f $(HERE)/user_interactions.tsv
 
 $(TRAINED_CLUSTER): $(LATEST_PTH) 
 	mkdir -p $(CLUSTER_OUTPUT_DIR) && $(py) cluster_training.py --data_name $(DATA_NAME) --data_dir $(DATA_DIR) --Ks '[$(K)]' --pretrain_model_path $(LATEST_PTH)
