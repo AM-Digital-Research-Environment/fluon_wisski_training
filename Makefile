@@ -2,10 +2,6 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
-# alias the python- and pip-executables to the ones in the virtual environment
-py = $$(if [ -d $(CURDIR)/'.venv' ]; then echo $(CURDIR)/".venv/bin/python3"; else echo "python3"; fi)
-pip = $(py) -m pip
-
 # dataset to be used. must have a folder in datasets/
 DATA_NAME:=wisski
 #FORCE:=force
@@ -13,19 +9,6 @@ DATA_NAME:=wisski
 FORCE:='no'
 # can be adjusted to KGAT or CKE
 ALGO:=KGAT
-
-# how many user profiles should we have for training? required profiles will be sampled
-N_USERS:=300
-# percentage of profiles that are modeled browsing around the KG neighborhood of random items
-PERC_WITHIN_RANGE:=50
-# percentage of profiles that are modeled browsing along paths in KG
-PERC_ALONG_PATHS:=50
-# number of interactions the profiles should have at max
-N_INTERACT_MAX:=200
-# and at min
-N_INTERACT_MIN:=30
-# and out of the max number, this many will be put into the test set
-N_INTERACT_MAX_TEST:=10
 
 # config paths
 HERE:=${CURDIR}
@@ -99,6 +82,10 @@ KG_ITEMS_N:=$(shell cut -f2 $(KG_ITEMS_FILE) | sort -nrk1,1 | head -1 | awk '{pr
 #~ .INTERMEDIATE: $(DIRNE)/config.py
 
 .DEFAULT_GOAL := help
+
+# alias the python- and pip-executables to the ones in the virtual environment
+py = $$(if [ -d $(CURDIR)/'.venv' ]; then echo $(CURDIR)/".venv/bin/python3"; else echo "python3"; fi)
+pip = $(py) -m pip
 
 # Display help for targets when calling `make` or `make help`.
 # To add help-tags to new targets, place them after the target-name (and
@@ -175,7 +162,7 @@ kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
 datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	cd profile_sampler && $(py) profile_sampler.py -d --n_interact_min $(N_INTERACT_MIN) --n_interact_max $(N_INTERACT_MAX) --n_interact_test_max $(N_INTERACT_MAX_TEST) --n_profiles $(N_USERS) --perc_within_range $(PERC_WITHIN_RANGE) --perc_along_path $(PERC_ALONG_PATHS) --items_file $(ITEMS_FILE) --knowledge_graph_file $(HERE)/datasets/$(DATA_NAME)/kg_final.txt --entities_file $(HERE)/datasets/$(DATA_NAME)/entities_id.txt --user_file $(USERS_FILE) --interactions_file $(INTERACTIONS_FILE) --save_dir $(HERE)/datasets/$(DATA_NAME)
+	$(MAKE) -C processing trainingprofiles DATA_NAME="$(DATA_NAME)" USER_DATA_DIR="$(USER_DATA_DIR)" DATA_DIR="$(HERE)/datasets/$(DATA_NAME)/"
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
