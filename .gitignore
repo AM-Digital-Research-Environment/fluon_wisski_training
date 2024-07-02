@@ -12,6 +12,7 @@ datasets/wisski/items_id.txt
 datasets/wisski/kg_final.txt
 datasets/wisski/relations_id.txt
 datasets/wisski/tmp/*
+*user_interactions.tsv
 *.npy
 
 # Byte-compiled / optimized / DLL files
