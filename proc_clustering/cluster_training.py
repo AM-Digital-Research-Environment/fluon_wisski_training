@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import metrics
 # ~ from cuml.metrics.pairwise_distances import pairwise_distances
 from sklearn.metrics import pairwise_distances, silhouette_score
-import cupy
+# ~ import cupy
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt

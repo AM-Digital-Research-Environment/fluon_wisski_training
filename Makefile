@@ -28,7 +28,7 @@ endif
 # remaining settings should be host-independent
 
 # more publication-related settings
-PUB_COMMAND:=cp
+PUB_COMMAND:=scp
 PUB_ENDPOINT_TRIGGER_UPDATE:=/maintenance/v1/db/update
 
 ifdef INIT
@@ -60,7 +60,7 @@ else
 	LATEST_PTH:=$(ALGO_PTH_DIR)/*.pth
 endif
 
-CLUSTER_OUTPUT_DIR:=$(HERE)/recommendations/trained_model/$(ALGO)/$(DATA_NAME)/
+CLUSTER_OUTPUT_DIR:=$(HERE)/proc_clustering/trained_model/$(ALGO)/$(DATA_NAME)/
 TRAINED_CLUSTER_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/cluster.csv
 TRAINED_MODEL_OUTPUT:=$(CLUSTER_OUTPUT_DIR)/recommendations.csv
 FINAL_OUTPUT_DIR:=$(HERE)/pub/$(DATA_NAME)/
@@ -71,7 +71,8 @@ USERS_FILE=$(USER_DATA_DIR)/user_ids.tsv
 ITEMS_FILE=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 INTERACTIONS_FILE=$(USER_DATA_DIR)/user_interactions.tsv
 
-Ks:=20, 40, 60, 80, 100
+#~ Ks:=20, 40, 60, 80, 100
+Ks:=20, 40, 60
 KG_ITEMS_FILE:=$(HERE)/datasets/$(DATA_NAME)/items_id.txt
 KG_ITEMS_N:=$(shell cut -f2 $(KG_ITEMS_FILE) | sort -nrk1,1 | head -1 | awk '{print $$1 + 1}') # increment result by one as numbering starts at 0
 
@@ -129,9 +130,9 @@ training: find_ref $(TRAINED_MODEL_OUTPUT) changelist ## do just the training
 
 .PHONY: publish
 publish: $(FINAL_CLUSTER_OUTPUT) $(FINAL_MODEL_OUTPUT) ## publish results to fluon_refsrv
-	$(PUB_COMMAND) $(HERE)/datasets/$(DATA_NAME)/items_id.txt $(PUB_DEST)/items_id.txt && \
-	$(MAKE) -C proc_clustering publish PUB_COMMAND=$(PUB_COMMAND) PUB_DEST="$(PUB_DEST)" && \
-	curl -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
+	$(MAKE) -C proc_clustering publish CLUSTER_OUTPUT_DIR="$(CLUSTER_OUTPUT_DIR)" FINAL_OUTPUT_DIR="$(FINAL_OUTPUT_DIR)" && \
+	$(PUB_COMMAND) -r $(HERE)/datasets/$(DATA_NAME)/items_id.txt $^ $(PUB_DEST) && \
+	curl --insecure -I -X POST -H 'accept: application/json' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)$(PUB_ENDPOINT_TRIGGER_UPDATE) | grep -v true  && echo "success" || echo "failure in update"
 
 .PHONY: clean
 clean: ## Cleanup routines. Covers training outputs as well!
@@ -157,8 +158,8 @@ kgat:
 kgat_pytorch:
 	git submodule add https://github.com/LunaBlack/KGAT-pytorch.git $@ && cd $@/data_loader && patch < ../../patches/loader_base.patch
 
-datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE)
-	$(MAKE) -C proc_fo trainingprofiles DATA_NAME="$(DATA_NAME)" USER_DATA_DIR="$(USER_DATA_DIR)" DATA_DIR="$(HERE)/datasets/$(DATA_NAME)/"
+datasets/wisski/train.txt datasets/wisski/test.txt &: $(USERS_FILE) $(INTERACTIONS_FILE) datasets/wisski/kg_final.txt
+	$(MAKE) -C proc_fluidontologies trainingprofiles DATA_NAME="$(DATA_NAME)" USER_DATA_DIR="$(USER_DATA_DIR)" DATA_DIR="$(HERE)/datasets/$(DATA_NAME)/"
 
 datasets/wisski/kg_final.txt:
 	cd datasets/wisski && make kg
@@ -185,23 +186,24 @@ $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_MODEL_OUTPUT) &: $(LATEST_PTH)
 ifdef INIT
 .PHONY: $(USERS_FILE)
 $(USERS_FILE):
-	mkdir -p $(USER_DATA_DIR) && $(shell echo "wisski_id\tfirst_seen" > $@)
+	mkdir -p $(USER_DATA_DIR) && echo -e "wisski_id\tfirst_seen" > $@ 
 
 .PHONY: $(INTERACTIONS_FILE)
 $(INTERACTIONS_FILE):
-	mkdir -p $(USER_DATA_DIR) && $(shell echo "wisski_user\twisski_item\tat" > $@)
+	mkdir -p $(USER_DATA_DIR) && echo -e "wisski_user\twisski_item\tat" > $@
 else
 $(USERS_FILE): 
-	mkdir -p $(USER_DATA_DIR) && curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
+	mkdir -p $(USER_DATA_DIR) && curl --insecure -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_users -H 'accept: text/tsv' -o $@
 
 $(INTERACTIONS_FILE):
-	mkdir -p $(USER_DATA_DIR) && curl -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
+	mkdir -p $(USER_DATA_DIR) && curl --insecure -X 'POST' --user $(PUB_ENDPOINT_USER):$(PUB_ENDPOINT_PASSWD) $(PUB_HOST)/maintenance/v1/db/export_interactions -H 'accept: text/tsv' -o $@
 endif
 
 $(FINAL_MODEL_OUTPUT): $(USERS_FILE) $(TRAINED_MODEL_OUTPUT)
-	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_model.awk $(ITEMS_FILE) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT) > $@ ) 
+	mkdir -p $(FINAL_OUTPUT_DIR) && awk -v OFS=',' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_model.awk $(ITEMS_FILE) $(USERS_FILE) $(TRAINED_MODEL_OUTPUT) > $@ 
 
 $(FINAL_CLUSTER_OUTPUT): $(TRAINED_CLUSTER_OUTPUT)
-	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ ) 
+	mkdir -p $(FINAL_OUTPUT_DIR) &&  awk -v OFS=',' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ 
+#~ 	mkdir -p $(FINAL_OUTPUT_DIR) && $(shell awk -v OFS=' ' -f $(HERE)/datasets/$(DATA_NAME)/res/convert_ids_to_wisski_cluster.awk $(ITEMS_FILE) $(TRAINED_CLUSTER_OUTPUT) > $@ ) 
 
 endif

@@ -3,7 +3,6 @@ import nctx.undirected as nctx
 import numpy as np
 import random
 from pathlib import Path
-import logging 
 
 class KnowledgeGraph():
   
@@ -56,13 +55,11 @@ class KnowledgeGraph():
   def get_distance_map(self):
     def decision(start, l, r):
       return True
-    logger.debug("obtaining distance map now")
     self.distance_map = np.full((self.n_items, self.n_items), -1)
     for u in range(self.n_items):
       sp_ctx = np.asarray(nctx.AlgPaths.dijkstra_ctx(self.g, u, decision))
       sp_ctx[np.where(sp_ctx < 0)] = -1
       self.distance_map[u,:] = sp_ctx[0:self.n_items]
-    logger.debug("obtaining distance map done")
   
   def get_graph(self):
     return self.g

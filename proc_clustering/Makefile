@@ -8,18 +8,6 @@ MAKEFLAGS += --no-builtin-rules
 py := $$(if [ -d $(CURDIR)/'.venv' ]; then echo $(CURDIR)/".venv/bin/python3"; else echo "python3"; fi)
 pip = $(py) -m pip
 
-ifndef DATA_NAME
-	$(error can't proceed without DATA_NAME)
-endif
-
-ifndef CLUSTER_OUTPUT_DIR
-	$(error can't proceed without CLUSTER_OUTPUT_DIR)
-endif
-
-ifndef LATEST_PTH
-	$(error can't proceed without LATEST_PTH)
-endif
-
 TRAINED_CLUSTER:=$(CLUSTER_OUTPUT_DIR)/clustering.joblib
 TRAINED_CLUSTER_DATA:=$(CLUSTER_OUTPUT_DIR)/clustering_data.npy
 TRAINED_CLUSTER_STATS:=$(CLUSTER_OUTPUT_DIR)/cluster_stats.joblib
@@ -39,8 +27,8 @@ training: $(TRAINED_CLUSTER_OUTPUT) $(TRAINED_MODEL_OUTPUT) ## cluster data and 
 	$(info $(CURDIR))
 
 .PHONY: publish
-publish: $(TRAINED_CLUSTER_DATA) $(TRAINED_CLUSTER) $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR) ## publish results 
-	$(PUB_COMMAND) -r $^ $(PUB_DEST) && \
+publish: $(TRAINED_CLUSTER_STATS) $(TRAINED_CLUSTER_PLOTDIR)
+	mkdir -p $(FINAL_OUTPUT_DIR) && cp -r $^ $(FINAL_OUTPUT_DIR)
 
 $(TRAINED_CLUSTER): $(LATEST_PTH) 
 	mkdir -p $(CLUSTER_OUTPUT_DIR) && $(py) cluster_training.py --data_name $(DATA_NAME) --data_dir $(DATA_DIR) --Ks '[$(K)]' --pretrain_model_path $(LATEST_PTH)

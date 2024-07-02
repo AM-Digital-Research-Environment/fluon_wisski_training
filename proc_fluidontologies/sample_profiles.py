@@ -23,9 +23,14 @@ def prepare_and_sample_from_kg(args, n_already_sampled, outfile_train, outfile_t
   p = kg.get_distance_map_path()
   
   if p.exists():
-    kg.load_map_and_check(p.resolve())
-  else:
+    try:
+      kg.load_map_and_check(p.resolve())
+    except AssertionError:
+      p.unlink()
+  if not p.exists():
+    logger.info("  obtaining distance map now")
     kg.get_distance_map()
+    logger.info("  obtaining distance map finished")
     kg.save(p.resolve())
   
   hist,min_dist_nonzero, max_dist_nonzero = kg.dist_hist()
@@ -104,6 +109,7 @@ def main(args):
   
   n_already_sampled = 0
   
+  
   try:
     with open(Path(args.save_dir, 'train.txt'), 'w') as _train, open(Path(args.save_dir, 'test.txt'), 'w') as _test:
       if sample_real_profiles and rp_n_known > 0:
@@ -115,10 +121,10 @@ def main(args):
         logger.info("sampling KG-informed profiles now")
         n_already_sampled = prepare_and_sample_from_kg(args, n_already_sampled, _train, _test)
         logger.info("sampling KG-informed profiles done")
-  except:
+  except Exception as e:
     Path(args.save_dir, 'train.txt').unlink(missing_ok=True)
     Path(args.save_dir, 'test.txt').unlink(missing_ok=True)
-    logger.warning(f"an error occurred. removed train.txt and test.txt")
+    logger.warning(f"an error occurred. removed train.txt and test.txt. {repr(e)}")
     return
   logger.info(f"done sampling {n_already_sampled} user profiles in total")
       

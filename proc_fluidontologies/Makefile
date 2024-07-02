@@ -1,19 +1,19 @@
 SHELL := bash
-.SHELLFLAGS := -eu -o pipefail -c
+#.SHELLFLAGS := -eu -o pipefail -c
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 .DEFAULT_GOAL := help
 
 # how many user profiles should we have for training? required profiles will be sampled
-N_USERS:=300
+N_USERS:=100
 # percentage of profiles that are modeled browsing around the KG neighborhood of random items
 PERC_WITHIN_RANGE:=50
 # percentage of profiles that are modeled browsing along paths in KG
 PERC_ALONG_PATHS:=50
 # number of interactions the profiles should have at max
-N_INTERACT_MAX:=200
+N_INTERACT_MAX:=40
 # and at min
-N_INTERACT_MIN:=30
+N_INTERACT_MIN:=15
 # and out of the max number, this many will be put into the test set
 N_INTERACT_MAX_TEST:=10
 
@@ -32,6 +32,7 @@ endif
 ITEMS_FILE=$(DATA_DIR)/items_id.txt
 KG_FILE=$(DATA_DIR)/kg_final.txt
 ENT_FILE=$(DATA_DIR)/entities_id.txt
+DIST_MAP=$(DATA_DIR)/distance_map.npy
 OUT_TEST:=$(DATA_DIR)/test.txt
 OUT_TRAIN:=$(DATA_DIR)/train.txt
 
@@ -51,7 +52,7 @@ all:
 
 .PHONY: clean
 clean: ## run cleanup routines
-	rm -f $(HERE)/user_interactions.tsv
+	rm -f $(DIST_MAP) $(OUT_TEST) $(OUT_TRAIN)
 
 .PHONY: trace
 trace: $(HERE)/user_interactions.tsv ## run interaction tracer

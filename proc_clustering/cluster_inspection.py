@@ -182,7 +182,7 @@ def evaluate_cluster(args):
           out.astype(int))
   np.savetxt(args.outfile,
              out.astype(int),
-             delimiter=' ',
+             delimiter=',',
              fmt='%i',
              header='item cluster rank')
   

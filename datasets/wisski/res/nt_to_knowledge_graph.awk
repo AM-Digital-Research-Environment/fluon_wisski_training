@@ -19,7 +19,7 @@ file == "filter_relations"{
   filter_relations[$0];next
 }
 fIndex == 3 {
-  if ( $3 ~ /"/ ) next; # only for triples where the object isn't some stupid string
+  #if ( $3 ~ /"/ ) next; # only for triples where the object isn't some string
   if ( $1 in filter_predicates ) next; # filter predicates and relations
   if ( $2 in filter_relations ) next;
   if ( $3 in filter_predicates ) next;
@@ -29,13 +29,14 @@ fIndex == 3 {
   next
 }
 fIndex == 4 {
-  if ( $1 ~ /https:\/\/www.wisski.uni-bayreuth.de\/wisski\/navigate\// ){
+  #if ( $1 ~ /http:\/\/www.wisski.uni-bayreuth.de\/wisski\/navigate\// ){
+  if ( $1 ~ /http(s)?:\/\/[^\/]+\/wisski\/navigate\// ){
     id = "<"gensub(/\r$/,"","g",$1)">"
     if (!(id in ent)){
       ent[id]=n_ent
       items[id]=n_ent
       print n_ent, id >> ent_file
-      print n_ent, id, gensub(/[^[:digit:]]/,"", "g", id) >> itm_file
+      print n_ent, id, gensub(/.*navigate\/([[:digit:]]+)\/view.*/,"\\1", "g", id) >> itm_file
       n_ent++
     }
   }

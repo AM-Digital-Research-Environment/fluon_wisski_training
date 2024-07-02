@@ -66,7 +66,7 @@ def evaluate(model, n_items, n_entities, test_batch_size, test_user_dict, device
     np.save(os.path.join(outdir,'recommendations.npy'), out)
     np.savetxt(os.path.join(outdir,'recommendations.csv'),
                out.astype(int),
-               delimiter=' ',
+               delimiter=',',
                fmt='%i',
                header='user item rank')          
 
