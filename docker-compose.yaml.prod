@@ -1,0 +1,12 @@
+services:
+  server:
+    build: ./server
+    container_name: fo_training-server
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./pub:/app/pub
+    networks:
+      - backbone
+networks:
+  backbone: {}

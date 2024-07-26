@@ -4,7 +4,8 @@ trained_model
 weights
 logs
 *.log
-pub
+pub/*
+!pub/.gitkeep
 datasets/wisski/train.txt
 datasets/wisski/test.txt
 datasets/wisski/entities_id.txt

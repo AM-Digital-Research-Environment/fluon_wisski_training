@@ -1,0 +1,18 @@
+services:
+  server:
+    build: ./server
+    container_name: fo_training-server
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./pub:/app/pub
+      - ./server/server:/app/server
+    networks:
+      - backbone
+    environment:
+        - FLASK_DEBUG=1
+        - FO_SERVER_SETTINGS=/app/server/default_settings.py
+    entrypoint: ["flask"]
+    command: ["--app", "server", "run", "--host", "0.0.0.0"]
+networks:
+  backbone: {}
