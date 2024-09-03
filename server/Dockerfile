@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.12.5-alpine@sha256:c2f41e6a5a67bc39b95be3988dd19fbd05d1b82375c46d9826c592cca014d4de
 
 EXPOSE 5000
 
@@ -7,25 +7,27 @@ RUN addgroup --system python \
     && mkdir /app \
     && chown --recursive python:python /app
 
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk update \
+    && apk add \
+     build-base \
+     linux-headers \
+     uwsgi-python3
+
+
 WORKDIR /app
-
-# RUN apk add --no-cache \
-#      build-base \
-#      linux-headers \
-#      uwsgi-python3
-
-
-# RUN python -m venv /app/venv
-# # Make sure we use the virtualenv:
-# ENV PATH="/app/venv/bin:$PATH"
-
-# COPY requirements.lock ./
-# RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir -r requirements.lock
-RUN --mount=source=dist,target=/dist PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /dist/*.whl
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY pyproject.toml .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r pyproject.toml
 
 COPY ./server /app/server
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -e .
+
 USER 1001
 
+ENV PATH="/app/venv/bin:$PATH"
 ENTRYPOINT ["uwsgi"]
 
 CMD ["--http-socket", "0.0.0.0:5000", "-w", "server.wsgi:app", "--master", "--processes", "4", "--threads", "2"]

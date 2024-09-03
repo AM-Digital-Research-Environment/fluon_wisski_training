@@ -5,7 +5,7 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
-      - ./pub:/app/pub
+      - ./output/final/wisski:/app/output/wisski
       - ./server/server:/app/server
     networks:
       - backbone
@@ -14,5 +14,16 @@ services:
         - FO_SERVER_SETTINGS=/app/server/default_settings.py
     entrypoint: ["flask"]
     command: ["--app", "server", "run", "--host", "0.0.0.0"]
+  cmd:
+    build: ./cmd
+    container_name: fo_training-cmd
+    init: true
+    tty: true
+    volumes:
+        - ./pub:/app/pub
+        - ./cmd/cmd:/app/cmd
+        - ./shared:/app/shared
+        - ./datasets:/app/datasets
+        - ./output:/app/output
 networks:
   backbone: {}

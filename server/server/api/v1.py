@@ -1,7 +1,7 @@
 import os
 import csv
 
-from flask import abort, current_app
+from flask import abort, current_app, Response
 from flask_restx import Namespace, Resource
 
 api = Namespace("export", "Training API, version 1")
@@ -23,12 +23,11 @@ class ClusterFinal(Resource):
 
         data = []
         with open(file_path, "r") as f:
-            reader = csv.DictReader(f, ["id", "cluster", "rank"], delimiter=" ")
+            reader = csv.DictReader(f, ["id", "cluster", "rank"], delimiter=",")
             for rec in reader:
                 data.append(
                     {"id": rec["id"], "cluster": rec["cluster"], "rank": rec["rank"]}
                 )
-
         return data
 
 
@@ -50,7 +49,7 @@ class Recommendations(Resource):
 
         data = []
         with open(file_path, "r") as f:
-            reader = csv.DictReader(f, ["user", "item", "rank"], delimiter=" ")
+            reader = csv.DictReader(f, ["user", "item", "rank"], delimiter=",")
             for rec in reader:
                 data.append(
                     {"user": rec["user"], "item": rec["item"], "rank": rec["rank"]}

@@ -4,17 +4,18 @@ trained_model
 weights
 logs
 *.log
-pub/*
-!pub/.gitkeep
-datasets/wisski/train.txt
-datasets/wisski/test.txt
-datasets/wisski/entities_id.txt
-datasets/wisski/items_id.txt
-datasets/wisski/kg_final.txt
-datasets/wisski/relations_id.txt
-datasets/wisski/tmp/*
-*user_interactions.tsv
+/pub/*
+!/pub/.gitkeep
+/datasets/wisski/train.txt
+/datasets/wisski/test.txt
+/datasets/wisski/entities_id.txt
+/datasets/wisski/items_id.txt
+/datasets/wisski/kg_final.txt
+/datasets/wisski/relations_id.txt
+/datasets/wisski/tmp/
+/datasets/fluon_refsrv/
 *.npy
+/cmd/.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
