@@ -1,6 +1,9 @@
-[submodule "kgat_pytorch"]
-	path = kgat_pytorch
-	url = https://github.com/LunaBlack/KGAT-pytorch.git
-[submodule "kgat"]
-	path = kgat
+[submodule "cmd/kgat"]
+	path = cmd/kgat
 	url = https://github.com/xiangwang1223/knowledge_graph_attention_network.git
+[submodule "cmd/kgat_pytorch"]
+	path = cmd/kgat_pytorch
+	url = https://github.com/LunaBlack/KGAT-pytorch.git
+[submodule "cmd/py3nctx"]
+	path = cmd/py3nctx
+	url = https://github.com/nctx/py3nctx

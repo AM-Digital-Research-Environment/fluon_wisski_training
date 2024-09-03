@@ -1,3 +1,3 @@
 SECRET_KEY = "c67193d95ecdd71bdd051aa0760d3cb17ca9213850770843ad44b8681a8ff81c"
-PUB_DIR = "./pub"
+PUB_DIR = "./output"
 DATA_SUBSETS = "wisski"
