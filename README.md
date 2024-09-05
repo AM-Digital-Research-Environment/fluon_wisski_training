@@ -3,7 +3,7 @@
 ## Getting started
 
 * Install prerequisits
-* make sure to have a running instance of [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) running
+* make sure to have a running instance of [dmkg/fluon-refsrv](https://github.com/dmwg/fluon_wisski_server) running
 * configure URL of instance in Makefile and adjust credentials of user in `Makefile.local`:
   ```
   PUB_DEST:=/some/personal/copy/of/the/folder
@@ -42,7 +42,7 @@ Compilation of all the datafiles happens via `awk` and the recipe given in [data
 
 ### Sampling of training profiles
 
-In [proc_fluidontologies/sample_profiles.py](proc_fluidontologies/sample_profiles.py), profiles are sampled according to three different personas. The number of sampled profiles depends on the number of real interactions logged in the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) and the configuration of total number of required user profiles.
+In [proc_fluidontologies/sample_profiles.py](proc_fluidontologies/sample_profiles.py), profiles are sampled according to three different personas. The number of sampled profiles depends on the number of real interactions logged in the [dmkg/fluon-refsrv](https://github.com/dmwg/fluon_wisski_server) and the configuration of total number of required user profiles.
 
 #### KG-informed topic focus
 
@@ -66,7 +66,7 @@ This persona just clicks around randomly. The profile is simply sampled randomly
 
 Profile sampling is configurable in the [proc_fluidontologies/Makefile](proc_fluidontologies/Makefile). 
 
-* `N_USERS`: The total number of user profiles that is required for training. If the [dmkg/fluon-refsrv](https://gitlab.uni-bayreuth.de:dmkg/fluon-refsrv) already contains `N_AVAILABLE` real interactions, these are given priority. The number of required sampled profiles is obtained as the difference between `N_REQUIRED = N_USERS - N_AVAILABLE`.
+* `N_USERS`: The total number of user profiles that is required for training. If the [dmkg/fluon-refsrv](https://github.com/dmwg/fluon_wisski_server) already contains `N_AVAILABLE` real interactions, these are given priority. The number of required sampled profiles is obtained as the difference between `N_REQUIRED = N_USERS - N_AVAILABLE`.
 * `PERC_WITHIN_RANGE`: percentage of profiles that are sampled according to the [focused persona](#kg-informed-topic-focus). The number of profiles is obtained as `N_REQUIRED * PERC_WITHN_RANGE / 100`
 * `PERC_ALONG_PATHS`: percentage of profiles that are sampled according to the [browsing persona](#kg-informed-walks). The number of profiles is obtained as `N_REQUIRED * PERC_ALONG_PATHS / 100`
 * `N_INTERACT_MAX`: the maximum number of interactions (i.e. items) the profiles should have 
