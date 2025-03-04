@@ -171,12 +171,6 @@ kgat/Model/pretrain/$(DATA_NAME)/mf.npz: kgat datasets/$(DATA_NAME)/kg_final.txt
 kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz: kgat_pytorch kgat/Model/pretrain/$(DATA_NAME)/mf.npz
 	[ -f $@ ] || ( mkdir -p kgat_pytorch/datasets/pretrain/$(DATA_NAME) && ln -s $(HERE)/kgat/Model/pretrain/$(DATA_NAME)/mf.npz $@ )
 
-train_kgat: kgat/Model/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat/Model && $(py) Main.py $(ALGO_PARAMS) --model_type $(ALGO_PYTHON_PARAM_MODELTYPE) --pretrain -1 --save_flag 1 --report 0
-
-train_kgat_pytorch: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
-	cd kgat_pytorch && $(py) $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
-
 %.pth: kgat_pytorch/datasets/pretrain/$(DATA_NAME)/mf.npz
 	cd kgat_pytorch && $(py) $(ALGO_PYTHON_SCRIPT_PYT) --use_pretrain 1 --evaluate_every 10 --Ks '[$(Ks)]' --data_name $(DATA_NAME) --data_dir $(HERE)/datasets
 

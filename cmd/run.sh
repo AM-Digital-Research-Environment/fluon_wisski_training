@@ -78,6 +78,9 @@ python main_kgat.py \
     --data_name wisski \
     --data_dir /app/shared/datasets
 
+cd /app/shared/pretrain/wisski
+rm -f mf.npz
+
 LATEST_MODEL=$(
     find /app/shared/model/wisski/embed-dim64_relation-dim64_random-walk_bi-interaction_64-32-16_lr0.0001_pretrain1 \
         -newer /app/kgat_pytorch \
