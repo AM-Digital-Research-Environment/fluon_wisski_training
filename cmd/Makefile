@@ -34,7 +34,8 @@ kgat: ## provision the KGAT framework with custom patches
 		&& patch < ../../patches/KGAT.patch \
 		&& patch < ../../patches/BPRMF.patch \
 		&& cd utility \
-		&& patch < ../../../patches/load_data.patch
+		&& patch < ../../../patches/load_data.patch \
+		&& patch < ../../../patches/helper.patch
 
 .PHONY: kgat_pytorch
 kgat_pytorch: ## provision the KGAT-pytorch extension with custom patches

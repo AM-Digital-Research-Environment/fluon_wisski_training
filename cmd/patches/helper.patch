@@ -1,0 +1,9 @@
+--- helper.py	2025-03-03 17:09:13.385691343 +0100
++++ helper2.py	2025-03-04 11:49:10.705693286 +0100
+@@ -15,7 +15,7 @@
+ def ensureDir(dir_path):
+     d = os.path.dirname(dir_path)
+     if not os.path.exists(d):
+-        os.makedirs(d)
++        os.makedirs(d, exist_ok=True)
+ 
