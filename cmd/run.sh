@@ -112,7 +112,7 @@ RECO_RAW_DIR=/app/shared/raw/wisski python /app/cmd/proc_clustering/cluster_reco
     --pretrain_model_path "$LATEST_MODEL"
 awk -v \
     OFS=',' \
-    -f /app/datasets/wisski/res/convert_ids_to_wisski_model.awk /app/shared/datasets/wisski/items_id.txt /app/datasets/fluon_refsrv/user_ids.tsv /app/shared/raw/wisski/recommendations.csv \
+    -f /app/datasets/wisski/res/convert_ids_to_wisski_model.awk /app/shared/datasets/wisski/items_id.txt /app/shared/dumps/fluon_refsrv/user_ids.tsv /app/shared/raw/wisski/recommendations.csv \
     >/app/output/final/wisski/recommendations.csv
 awk -v \
     OFS=',' \
