@@ -30,6 +30,9 @@ python /app/cmd/sample.py \
     --knowledge_graph_file /app/shared/datasets/wisski/kg_final.txt \
     profiles
 
+cd /app/shared/pretrain/wisski
+rm -f mf.npz
+
 cd /app/kgat/Model
 python Main.py \
     --alg_type kgat \
@@ -78,9 +81,6 @@ python main_kgat.py \
     --data_name wisski \
     --data_dir /app/shared/datasets
 
-cd /app/shared/pretrain/wisski
-rm -f mf.npz
-
 LATEST_MODEL=$(
     find /app/shared/model/wisski/embed-dim64_relation-dim64_random-walk_bi-interaction_64-32-16_lr0.0001_pretrain1 \
         -newer /app/kgat_pytorch \
@@ -107,7 +107,7 @@ python /app/cmd/proc_clustering/cluster_inspection.py \
     --outfile /app/shared/clustering/wisski/cluster.csv
 RECO_RAW_DIR=/app/shared/raw/wisski python /app/cmd/proc_clustering/cluster_recommender.py \
     --data_name wisski \
-    --data_dir /app/datasets \
+    --data_dir /app/shared/datasets \
     --Ks '[20, 40, 60]' \
     --pretrain_model_path "$LATEST_MODEL"
 awk -v \
@@ -118,3 +118,4 @@ awk -v \
     OFS=',' \
     -f /app/datasets/wisski/res/convert_ids_to_wisski_cluster.awk /app/shared/datasets/wisski/items_id.txt /app/shared/clustering/wisski/cluster.csv \
     >/app/output/final/wisski/cluster.csv
+
